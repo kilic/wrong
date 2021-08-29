@@ -1,168 +1,115 @@
-from random import randint
 import sympy
-from sympy.sets.fancysets import Naturals
+from random import randint
 
 
-def to_limbs(n, number_of_limbs, R):
-    return [n >> (R * i) & ((1 << R) - 1) for i in range(number_of_limbs)]
+def new_reporter():
+    reporter = {}
+    reporter["fails"] = {}
+    reporter["u0_bit_len"] = {}
+    reporter["u1_bit_len"] = {}
+    return reporter
 
 
-def from_limbs(limbs, R):
-    acc = 0
-    for i in range(len(limbs)):
-        acc += limbs[i] * (2**(R * i))
-    return acc
+class RNS:
+    def setup(bit_len_modulus, T, number_of_limbs, bit_len_limb):
 
+        while True:
+            a = sympy.randprime(1 << (bit_len_modulus - 1),
+                                1 << bit_len_modulus)
+            b = sympy.randprime(1 << (bit_len_modulus - 1),
+                                1 << bit_len_modulus)
 
-def debug_limbs(limbs):
-    s = ""
-    for e in reversed(limbs):
-        s += hex(e) + " "
-    return s
+            wrong_modulus, native_modulus = 0, 0
+            if b < a:
+                wrong_modulus = a
+                native_modulus = b
+            elif a < b:
+                wrong_modulus = b
+                native_modulus = a
+            else:
+                continue
 
+            if T * native_modulus < wrong_modulus**2:
+                continue
+            return RNS(
+                wrong_modulus,
+                native_modulus,
+                number_of_limbs,
+                bit_len_limb,
+            )
 
-def setup(n, T):
-    a = sympy.randprime(1 << (n - 1), 1 << n)
-    b = sympy.randprime(1 << (n - 1), 1 << n)
-    # dif = 2
-    # b = sympy.randprime(1 << (n - dif - 1), 1 << (n - dif))
-    if b < a:
-        wrong_modulus = a
-        native_modulus = b
-        if T * native_modulus < wrong_modulus**2:
-            return setup(n, T)
-        return wrong_modulus, native_modulus
-    if a < b:
+    def __init__(
+        self,
+        wrong_modulus,
+        native_modulus,
+        number_of_limbs,
+        bit_len_limb,
+    ):
+        self.wrong_modulus = wrong_modulus
+        self.native_modulus = native_modulus
+        self.number_of_limbs = number_of_limbs
+        self.bit_len_limb = bit_len_limb
+        self.R = 1 << bit_len_limb
 
-        wrong_modulus = b
-        native_modulus = a
+    def rand_int(self):
+        return randint(0, self.wrong_modulus)
 
-        if T * native_modulus < wrong_modulus**2:
-            return setup(n, T)
-        return wrong_modulus, native_modulus
+    def rand_limb(self):
+        return randint(0, 1 << self.bit_len_limb)
 
-    return setup(n, T)
+    def to_limbs(self, n):
+        return [
+            n >> (self.bit_len_limb * i) & ((1 << self.bit_len_limb) - 1)
+            for i in range(self.number_of_limbs)
+        ]
 
+    def from_limbs(self, limbs):
+        acc = 0
+        for i in range(len(limbs)):
+            acc += limbs[i] * (2**(self.bit_len_limb * i))
+        return acc
 
-bit_size = 31
-t = 32
-N = 4
-limb_bit_size = t // N
-R = 1 << limb_bit_size
-T = 1 << t
+    def debug_limbs(self, desc, limbs):
+        s = desc + " "
+        for e in reversed(limbs):
+            s += hex(e) + " "
+        print(hex(self.from_limbs(limbs)), s)
 
-u0_bit_len = {}
-u1_bit_len = {}
-fails = {}
+    def check(self, t, r, reporter):
+        # works only for this case
+        assert self.number_of_limbs == 4
 
-for z in range(10):
+        R = self.R
+        S = self.bit_len_limb << 1
+        n = self.native_modulus
 
-    wrong_modulus, native_modulus = setup(bit_size, T)
-    # 4 (29, 25, '0x13dc5fcf', '0x1d28d91')
-    # wrong_modulus = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
-    # native_modulus = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001
+        u0 = (t[0] + R * t[1] - r[0] - R * r[1]) % n
+        u1 = (t[2] + R * t[3] - r[2] - R * r[3]) % n
+        u1 = (u1 + (u0 >> S)) % n
 
-    assert wrong_modulus > native_modulus
-    assert T * native_modulus > wrong_modulus**2
+        mask = (1 << S) - 1
+        if (u0 & mask != 0) or (u1 & mask != 0):
+            key = (self.wrong_modulus.bit_length(),
+                   self.native_modulus.bit_length())
+            fails = reporter["fails"]
+            if key not in fails:
+                fails[key] = 0
+            fails[key] += 1
 
-    p_val = wrong_modulus
-    a_val = randint(0, p_val)
-    b_val = 17
-    b_val = randint(0, p_val)
-    q_val = (a_val * b_val) // p_val
-    r_val = (a_val * b_val) % p_val
-    assert a_val * b_val == p_val * q_val + r_val
+        u0 = u0 >> S
+        u1 = u1 >> S
 
-    p_val = (-p_val) % T
+        _u0 = u0.bit_length()
+        _u1 = u1.bit_length()
 
-    a = to_limbs(a_val, N, limb_bit_size)
-    b = to_limbs(b_val, N, limb_bit_size)
-    p = to_limbs(p_val, N, limb_bit_size)
-    q = to_limbs(q_val, N, limb_bit_size)
-    r = to_limbs(r_val, N, limb_bit_size)
+        u0_bit_len = reporter["u0_bit_len"]
+        u1_bit_len = reporter["u1_bit_len"]
 
-    t = [0] * (2 * N - 1)
-    for i in range(N):
-        for j in range(N):
-            t[i + j] = (t[i + j] + a[i] * b[j] + p[i] * q[j]) % native_modulus
+        if _u0 not in u0_bit_len:
+            u0_bit_len[_u0] = 0
 
-    print(debug_limbs(t))
+        if _u1 not in u1_bit_len:
+            u1_bit_len[_u1] = 0
 
-    u0 = (t[0] + R * t[1] - r[0] - R * r[1]) % native_modulus
-    print(hex(u0))
-    u1 = (t[2] + R * t[3] - r[2] - R * r[3]) % native_modulus
-    u1 = (u1 + (u0 >> (2 * limb_bit_size))) % native_modulus
-    print(hex(u1))
-
-    s = (2 * limb_bit_size)
-    mask = (1 << s) - 1
-    if u0 & mask != 0:
-        key = (wrong_modulus.bit_length(), native_modulus.bit_length())
-        if key not in fails:
-            fails[key] = 0
-        fails[key] += 1
-
-    if u1 & mask != 0:
-        key = (wrong_modulus.bit_length(), native_modulus.bit_length())
-        if key not in fails:
-            fails[key] = 0
-        fails[key] += 1
-
-    # print(wrong_modulus.bit_length(), native_modulus.bit_length())
-    u0 = u0 >> s
-    u1 = u1 >> s
-
-    _u0 = u0.bit_length()
-    _u1 = u1.bit_length()
-
-    if _u0 not in u0_bit_len:
-        u0_bit_len[_u0] = 0
-
-    if _u1 not in u1_bit_len:
-        u1_bit_len[_u1] = 0
-
-    u0_bit_len[_u0] += 1
-    u1_bit_len[_u1] += 1
-
-print("--- u0 bit")
-
-for key in u0_bit_len.keys():
-    print(key, u0_bit_len[key])
-
-print("--- u1 bit")
-
-for key in u1_bit_len.keys():
-    print(key, u1_bit_len[key])
-
-print("--- fails?")
-
-for key in fails.keys():
-    print(key, fails[key])
-
-# z1 = [0] * (2 * N - 1)
-# for i in range(N):
-#     for j in range(N):
-#         z1[i + j] = (a[i] * b[j] + z1[i + j]) % native_modulus
-
-# print("z1", debug_limbs(z1))
-
-# z2 = [0] * (2 * N - 1)
-# for i in range(N):
-#     for j in range(N):
-#         z2[i + j] = (p[i] * q[j] + z2[i + j]) % native_modulus
-
-# print("z2", debug_limbs(z2))
-
-# for i in range(len(r)):
-#     z2[i] = (z2[i] - r[i]) % native_modulus
-
-# u0 = (z1[0] + z2[0] + R * (z1[1] + z2[1])) % native_modulus
-# u1 = (z1[2] + z2[2] + R * (z1[3] + z2[3])) % native_modulus
-# u1 = (u1 + (u0 >> (2 * limb_bit_size))) % native_modulus
-
-# s = (2 * limb_bit_size)
-# mask = 1 << (s - 1)
-# assert u0 & mask == 0
-# assert u1 & mask == 0
-# u0 = u0 >> s
-# u1 = u1 >> s
+        u0_bit_len[_u0] += 1
+        u1_bit_len[_u1] += 1
