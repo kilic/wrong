@@ -11,13 +11,19 @@ def new_reporter():
 
 
 class RNS:
-    def setup(bit_len_modulus, T, number_of_limbs, bit_len_limb):
+
+    def setup(
+        bit_len_modulus,
+        crt_modulus_bit_len,
+        number_of_limbs,
+        bit_len_limb,
+    ):
+
+        T = 1 << crt_modulus_bit_len
 
         while True:
-            a = sympy.randprime(1 << (bit_len_modulus - 1),
-                                1 << bit_len_modulus)
-            b = sympy.randprime(1 << (bit_len_modulus - 1),
-                                1 << bit_len_modulus)
+            a = sympy.randprime(1 << (bit_len_modulus - 1), 1 << bit_len_modulus)
+            b = sympy.randprime(1 << (bit_len_modulus - 1), 1 << bit_len_modulus)
 
             wrong_modulus, native_modulus = 0, 0
             if b < a:
@@ -31,7 +37,9 @@ class RNS:
 
             if T * native_modulus < wrong_modulus**2:
                 continue
+
             return RNS(
+                crt_modulus_bit_len,
                 wrong_modulus,
                 native_modulus,
                 number_of_limbs,
@@ -40,6 +48,7 @@ class RNS:
 
     def __init__(
         self,
+        crt_modulus_bit_len,
         wrong_modulus,
         native_modulus,
         number_of_limbs,
@@ -50,30 +59,40 @@ class RNS:
         self.number_of_limbs = number_of_limbs
         self.bit_len_limb = bit_len_limb
         self.R = 1 << bit_len_limb
+        self.T = 1 << crt_modulus_bit_len
+        self.neg_wrong_modulus = (-wrong_modulus) % self.T
+        assert self.T > self.wrong_modulus
+        assert self.T > self.native_modulus
 
-    def rand_int(self):
-        return randint(0, self.wrong_modulus)
+    def rand_int(self, limit=-1):
+        if limit == -1:
+            limit = self.wrong_modulus
+        return randint(0, limit)
 
     def rand_limb(self):
         return randint(0, 1 << self.bit_len_limb)
 
     def to_limbs(self, n):
-        return [
-            n >> (self.bit_len_limb * i) & ((1 << self.bit_len_limb) - 1)
-            for i in range(self.number_of_limbs)
-        ]
+        mask = ((1 << self.bit_len_limb) - 1)
+        return [n >> (self.bit_len_limb * i) & mask for i in range(self.number_of_limbs)]
+
+    def neg_wrong_modulus_limbs(self):
+        return self.to_limbs(self.neg_wrong_modulus)
+
+    def overflow_factor(self):
+        return self.T // self.wrong_modulus
 
     def from_limbs(self, limbs):
         acc = 0
         for i in range(len(limbs)):
-            acc += limbs[i] * (2**(self.bit_len_limb * i))
+            acc += limbs[i] * (1 << (self.bit_len_limb * i))
         return acc
 
     def debug_limbs(self, desc, limbs):
-        s = desc + " "
+        s = ""
         for e in reversed(limbs):
             s += hex(e) + " "
-        print(hex(self.from_limbs(limbs)), s)
+        print(desc, hex(self.from_limbs(limbs)), s)
 
     def check(self, t, r, reporter):
         # works only for this case
@@ -88,13 +107,16 @@ class RNS:
         u1 = (u1 + (u0 >> S)) % n
 
         mask = (1 << S) - 1
+
+        failed = None
         if (u0 & mask != 0) or (u1 & mask != 0):
-            key = (self.wrong_modulus.bit_length(),
-                   self.native_modulus.bit_length())
+            key = (self.wrong_modulus.bit_length(), self.native_modulus.bit_length())
             fails = reporter["fails"]
             if key not in fails:
                 fails[key] = 0
             fails[key] += 1
+
+            failed = True
 
         u0 = u0 >> S
         u1 = u1 >> S
@@ -113,3 +135,5 @@ class RNS:
 
         u0_bit_len[_u0] += 1
         u1_bit_len[_u1] += 1
+
+        return failed
