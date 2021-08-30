@@ -18,7 +18,7 @@ for z in range(1000):
     b = randint(1, rns.overflow_ratio())
     c = randint(0, b - 1)
     a_val = a_val * b
-    a = rns.from_value(a_val)
+    a = rns.integer_from_value(a_val)
 
     r, q, t, u0, u1 = a.reduce(c)
     assert r.value() % p == a.value() % p

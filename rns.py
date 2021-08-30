@@ -1,6 +1,7 @@
 import sympy
 from random import randint
 from int import Integer
+from py_ecc.utils import prime_field_inv
 
 
 def new_reporter():
@@ -67,6 +68,10 @@ class RNS:
         self.R = 1 << bit_len_limb
         self.T = 1 << crt_modulus_bit_len
         self.neg_wrong_modulus = (-wrong_modulus) % self.T
+
+        inv_two = prime_field_inv(2, native_modulus)
+        self.right_shifter = (inv_two**(2 * self.bit_len_limb)) % native_modulus
+
         assert self.T > self.wrong_modulus
         assert self.T > self.native_modulus
 
@@ -132,7 +137,7 @@ class RNS:
 
         u0 = (t[0] + R * t[1] - r[0] - R * r[1]) % n
         u1 = (t[2] + R * t[3] - r[2] - R * r[3]) % n
-        u1 = (u1 + (u0 >> S)) % n
+        u1 = (u1 + u0 * self.right_shifter) % n
 
         return u0, u1
 

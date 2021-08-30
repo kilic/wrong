@@ -26,6 +26,26 @@ for z in range(1000):
 
     r0 = acc.value() % p
 
-    r1, _, _, _, _ = acc.reduce()
+    r1, _, _, u0, u1 = acc.reduce()
 
-    assert r0 == r1.value()
+    _u0 = u0.bit_length()
+    _u1 = u1.bit_length()
+
+    if _u0 not in u0_bit_len:
+        u0_bit_len[_u0] = 0
+
+    if _u1 not in u1_bit_len:
+        u1_bit_len[_u1] = 0
+
+    u0_bit_len[_u0] += 1
+    u1_bit_len[_u1] += 1
+
+print("--- u0 bit")
+
+for key in u0_bit_len.keys():
+    print(key, u0_bit_len[key])
+
+print("--- u1 bit")
+
+for key in u1_bit_len.keys():
+    print(key, u1_bit_len[key])
