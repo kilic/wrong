@@ -112,7 +112,7 @@ class RNS:
     def neg_wrong_modulus_limbs(self):
         return self.to_limbs(self.neg_wrong_modulus)
 
-    def overflow_factor(self):
+    def overflow_ratio(self):
         return self.T // self.wrong_modulus
 
     def debug_limbs(self, desc, limbs):

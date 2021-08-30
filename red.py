@@ -14,8 +14,8 @@ for z in range(1000):
     p = rns.wrong_modulus
 
     a_val = p - 1
-    assert rns.overflow_factor() > 0
-    b = randint(1, rns.overflow_factor())
+    assert rns.overflow_ratio() > 0
+    b = randint(1, rns.overflow_ratio())
     c = randint(0, b - 1)
     a_val = a_val * b
     a = rns.from_value(a_val)
