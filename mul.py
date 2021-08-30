@@ -5,8 +5,6 @@ u1_bit_len = {}
 fails = {}
 
 crt_modulus_bit_len = 32
-T = 1 << crt_modulus_bit_len
-
 bit_len_modulus = 31
 bit_len_limbs = 8
 number_of_limbs = 4
@@ -15,7 +13,7 @@ reporter = new_reporter()
 
 for z in range(1000):
 
-    rns = RNS.setup(bit_len_modulus, T, number_of_limbs, bit_len_limbs)
+    rns = RNS.setup(bit_len_modulus, crt_modulus_bit_len, number_of_limbs, bit_len_limbs)
     n = rns.native_modulus
     p_val = rns.wrong_modulus
 
@@ -25,11 +23,9 @@ for z in range(1000):
     r_val = (a_val * b_val) % p_val
     assert a_val * b_val == p_val * q_val + r_val
 
-    neg_p_val = (-p_val) % T
-
     a = rns.to_limbs(a_val)
     b = rns.to_limbs(b_val)
-    p = rns.to_limbs(neg_p_val)
+    p = rns.neg_wrong_modulus_limbs()
     q = rns.to_limbs(q_val)
     r = rns.to_limbs(r_val)
 
