@@ -1,66 +1,40 @@
-from wrong import *
-
-u0_bit_len = {}
-u1_bit_len = {}
-fails = {}
+from rns import *
 
 crt_modulus_bit_len = 32
-
 bit_len_modulus = 31
 bit_len_limbs = 8
 number_of_limbs = 4
 
-reporter = new_reporter()
-
+u0_bit_len = {}
+u1_bit_len = {}
 for z in range(1000):
 
     rns = RNS.setup(bit_len_modulus, crt_modulus_bit_len, number_of_limbs, bit_len_limbs)
-    n = rns.native_modulus
-    p_val = rns.wrong_modulus
+    a = rns.rand_int()
+    b = rns.rand_int()
+    r, q, t, u0, u1 = a - b
 
-    range_correct_factor = rns.R
-    aux = [_p * range_correct_factor for _p in rns.to_limbs(p_val)]
+    p = rns.wrong_modulus
+    assert r.value() == (a.value() - b.value()) % p
 
-    # there is a funny case where and aux can't move a limb into the range :/
-    bad_aux = False
-    for u in aux:
-        if u == 0:
-            bad_aux = True
-    if bad_aux:
-        continue
+    _u0 = u0.bit_length()
+    _u1 = u1.bit_length()
 
-    a_val = rns.rand_int()
-    b_val = rns.rand_int()
-    p = rns.neg_wrong_modulus_limbs()
+    if _u0 not in u0_bit_len:
+        u0_bit_len[_u0] = 0
 
-    r_expect = (a_val - b_val) % p_val
+    if _u1 not in u1_bit_len:
+        u1_bit_len[_u1] = 0
 
-    a = rns.to_limbs(a_val)
-    b = rns.to_limbs(b_val)
-    a = [(a - b) % rns.native_modulus for a, b in zip(a, b)]
-    a = [(a + aux) % rns.native_modulus for a, aux in zip(a, aux)]
-
-    a_val = rns.from_limbs(a)
-    q = a_val // p_val
-    r_val = a_val % p_val
-    r = rns.to_limbs(r_val)
-    assert a_val == p_val * q + r_val
-
-    t = [a[i] + q * p[i] for i in range(4)]
-
-    rns.check(t, r, reporter)
+    u0_bit_len[_u0] += 1
+    u1_bit_len[_u1] += 1
 
 print("--- u0 bit")
 
-for key in reporter["u0_bit_len"].keys():
-    print(key, reporter["u0_bit_len"][key])
+for key in u0_bit_len.keys():
+    print(key, u0_bit_len[key])
 
 print("--- u1 bit")
 
-for key in reporter["u1_bit_len"].keys():
-    print(key, reporter["u1_bit_len"][key])
-
-print("--- fails?")
-
-for key in reporter["fails"].keys():
-    print(key, reporter["fails"][key])
+for key in u1_bit_len.keys():
+    print(key, u1_bit_len[key])
