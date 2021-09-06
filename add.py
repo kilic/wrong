@@ -18,15 +18,21 @@ for z in range(1000):
     c = a + b
     assert c.value() % p == (a.value() + b.value()) % p
 
-    acc = rns.rand_int()
-
-    while acc.value() < T:
-        acc = acc + rns.rand_int()
-    acc = acc + rns.rand_int()    # one more
+    z = rns.integer_from_value(p - 1)
+    acc = rns.integer_from_value(0)
+    for i in range(256):
+        acc = acc + z
 
     r0 = acc.value() % p
 
-    r1, _, _, u0, u1 = acc.reduce()
+    r1, q, _, u0, u1, fails = acc.reduce()
+    if fails:
+        print("fail")
+        print(u0.bit_length())
+        print(u1.bit_length())
+        break
+
+    assert r0 == r1.value()
 
     _u0 = u0.bit_length()
     _u1 = u1.bit_length()

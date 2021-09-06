@@ -23,11 +23,12 @@ class Integer:
         t = [0] * (2 * N - 1)
         for i in range(N):
             for j in range(N):
+                k = self[i] * other[j]
                 t[i + j] = (t[i + j] + self[i] * other[j] + p[i] * q[j]) % n
 
-        u0, u1 = self.residues(t, r)
+        u0, u1, fails = self.residues(t, r)
 
-        return Integer(self.rns, r), q, t, u0, u1
+        return Integer(self.rns, r), q, t, u0, u1, fails
 
     def __add__(self, other):
         res = self.rns.integer_from_limbs([(a + b) % self.native_modulus() for (a, b) in zip(self.limbs, other.limbs)])
@@ -62,9 +63,9 @@ class Integer:
         assert self.rns.from_limbs(r) == r_val
         t = [a + q * p for (a, p) in zip(self.limbs, p)]
 
-        u0, u1 = self.residues(t, r)
+        u0, u1, fails = self.residues(t, r)
 
-        return Integer(self.rns, r), q, t, u0, u1
+        return Integer(self.rns, r), q, t, u0, u1, fails
 
     def residues(self, t, r):
         S = 2 * self.rns.bit_len_limb
@@ -72,13 +73,14 @@ class Integer:
 
         mask = (1 << S) - 1
 
+        fails = False
         if (u0 & mask != 0) or (u1 & mask != 0):
-            print("fails")
+            fails = True
 
         u0 = u0 >> S
         u1 = u1 >> S
 
-        return u0, u1
+        return u0, u1, fails
 
     def value(self):
         return self.rns.from_limbs(self.limbs)
