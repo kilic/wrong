@@ -5,6 +5,10 @@ bit_len_modulus = 31
 bit_len_limbs = 8
 number_of_limbs = 4
 
+# running this to hit some fixed aux cases
+for i in range(1000):
+    rns = RNS.setup(bit_len_modulus, crt_modulus_bit_len, number_of_limbs, bit_len_limbs)
+
 u0_bit_len = {}
 u1_bit_len = {}
 for z in range(1000):
@@ -12,7 +16,12 @@ for z in range(1000):
     rns = RNS.setup(bit_len_modulus, crt_modulus_bit_len, number_of_limbs, bit_len_limbs)
     a = rns.rand_int()
     b = rns.rand_int()
-    r, q, t, u0, u1 = a - b
+    r, q, t, u0, u1, fails = a - b
+    if fails:
+        print("fail")
+        print(u0.bit_length())
+        print(u1.bit_length())
+        break
 
     p = rns.wrong_modulus
     assert r.value() == (a.value() - b.value()) % p

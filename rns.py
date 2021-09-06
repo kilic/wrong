@@ -41,17 +41,13 @@ class RNS:
             if T * native_modulus < wrong_modulus**2:
                 continue
 
-            try:
-                rns = RNS(
-                    crt_modulus_bit_len,
-                    wrong_modulus,
-                    native_modulus,
-                    number_of_limbs,
-                    bit_len_limb,
-                )
-                return rns
-            except:
-                continue
+            return RNS(
+                crt_modulus_bit_len,
+                wrong_modulus,
+                native_modulus,
+                number_of_limbs,
+                bit_len_limb,
+            )
 
     def __init__(
         self,
@@ -76,15 +72,31 @@ class RNS:
         assert self.T > self.native_modulus
 
         range_correct_factor = self.R - 1
-        aux = [_p * range_correct_factor for _p in self.to_limbs(wrong_modulus)]
+        modulus_limbs = self.to_limbs(wrong_modulus)
+        aux = [_p * range_correct_factor for _p in modulus_limbs]
 
         # there is a funny case where a limb of and aux is equal to zero
         # and therefore can't move limb of the result into the range :/
-        # for now let's just disallow such setup
-        for u in aux:
-            if u == 0:
-                raise "bad setup"
+        # so we borrow from next limb.
+        self.fixed_aux = False
 
+        for i, u in enumerate(modulus_limbs):
+            if u == 0:
+                if i == 0:
+                    raise "First limb of modulus is zero. Non prime modulus apperently"
+                if i == self.number_of_limbs - 1:
+                    raise "Last limb of modulus is zero. We expect sparse setup"
+
+                this, next = i, i + 1
+                b = self.bit_len_limb
+                _aux = aux[:]
+                aux[this] = ((1 << b) - 1) << b
+                aux[next] = ((aux[next] << b) - aux[this]) >> b
+
+                assert self.from_limbs(_aux) == self.from_limbs(aux)
+                self.fixed_aux = True
+
+        assert self.from_limbs(aux) % self.wrong_modulus == 0
         self.aux = aux
 
     def integer_from_limbs(self, limbs):
