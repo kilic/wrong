@@ -77,10 +77,10 @@ class Integer:
         if (u0 & mask != 0) or (u1 & mask != 0):
             fails = True
 
-        u0 = u0 >> S
-        u1 = u1 >> S
+        v0 = u0 >> S
+        v1 = u1 >> S
 
-        return u0, u1, fails
+        return v0, v1, fails
 
     def value(self):
         return self.rns.from_limbs(self.limbs)
@@ -90,3 +90,9 @@ class Integer:
 
     def native_modulus(self):
         return self.rns.native_modulus
+
+    def debug(self, desc=""):
+        s = ""
+        for e in reversed(self.limbs):
+            s += "\n" + hex(e)
+        print(desc, s)

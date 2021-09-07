@@ -14,6 +14,23 @@ def new_reporter():
 
 class RNS:
 
+    def setup2(
+        wrong_modulus,
+        native_modulus,
+        crt_modulus_bit_len,
+        number_of_limbs,
+        bit_len_limb,
+    ):
+        T = 1 << crt_modulus_bit_len
+        assert T * native_modulus > wrong_modulus**2
+        return RNS(
+            crt_modulus_bit_len,
+            wrong_modulus,
+            native_modulus,
+            number_of_limbs,
+            bit_len_limb,
+        )
+
     def setup(
         bit_len_modulus,
         crt_modulus_bit_len,
@@ -80,12 +97,13 @@ class RNS:
         # so we borrow from next limb.
         self.fixed_aux = False
 
-        for i, u in enumerate(modulus_limbs):
-            if u == 0:
-                if i == 0:
-                    raise "First limb of modulus is zero. Non prime modulus apperently"
-                if i == self.number_of_limbs - 1:
-                    raise "Last limb of modulus is zero. We expect sparse setup"
+        for i in range(self.number_of_limbs):
+            if aux[i] == 0:
+
+                # First limb of modulus is zero. Non prime modulus apperently
+                assert i != 0
+                # Last limb of modulus is zero. We expect sparse setup
+                assert i != self.number_of_limbs - 1
 
                 this, next = i, i + 1
                 b = self.bit_len_limb
@@ -97,6 +115,7 @@ class RNS:
                 self.fixed_aux = True
 
         assert self.from_limbs(aux) % self.wrong_modulus == 0
+
         self.aux = aux
 
     def integer_from_limbs(self, limbs):
@@ -117,13 +136,15 @@ class RNS:
         return randint(0, 1 << self.bit_len_limb)
 
     def to_limbs(self, n):
-        mask = ((1 << self.bit_len_limb) - 1)
-        return [n >> (self.bit_len_limb * i) & mask for i in range(self.number_of_limbs)]
+        b = self.bit_len_limb
+        mask = ((1 << b) - 1)
+        return [n >> (b * i) & mask for i in range(self.number_of_limbs)]
 
     def from_limbs(self, limbs):
+        b = self.bit_len_limb
         acc = 0
         for i in range(len(limbs)):
-            acc += limbs[i] * (1 << (self.bit_len_limb * i))
+            acc += limbs[i] * (1 << (b * i))
         return acc
 
     def neg_wrong_modulus_limbs(self):
@@ -149,6 +170,7 @@ class RNS:
 
         u0 = (t[0] + R * t[1] - r[0] - R * r[1]) % n
         u1 = (t[2] + R * t[3] - r[2] - R * r[3]) % n
+
         u1 = (u1 + u0 * self.right_shifter) % n
 
         return u0, u1
