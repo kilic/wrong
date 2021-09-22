@@ -20,9 +20,10 @@ for z in range(1000):
     a_val = a_val * b
     a = rns.integer_from_value(a_val)
 
-    r, q, t, u0, u1, fails = a.reduce(c)
+    r, q, t, u0, u1, fails, overflow = a.reduce(c)
     if fails:
         print("fail")
+        print(overflow)
         print(u0.bit_length())
         print(u1.bit_length())
         break

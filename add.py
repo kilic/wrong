@@ -25,9 +25,10 @@ for z in range(1000):
 
     r0 = acc.value() % p
 
-    r1, q, _, u0, u1, fails = acc.reduce()
+    r1, q, _, u0, u1, fails, overflow = acc.reduce()
     if fails:
         print("fail")
+        print(overflow)
         print(u0.bit_length())
         print(u1.bit_length())
         break

@@ -78,17 +78,16 @@ class RNS:
         self.native_modulus = native_modulus
         self.number_of_limbs = number_of_limbs
         self.bit_len_limb = bit_len_limb
-        self.R = 1 << bit_len_limb
+        self.left_shifter = 1 << bit_len_limb
         self.T = 1 << crt_modulus_bit_len
         self.neg_wrong_modulus = (-wrong_modulus) % self.T
-
         inv_two = prime_field_inv(2, native_modulus)
-        self.right_shifter = (inv_two**(2 * self.bit_len_limb)) % native_modulus
+        self.right_shifter = (inv_two**(self.bit_len_limb)) % native_modulus
 
         assert self.T > self.wrong_modulus
         assert self.T > self.native_modulus
 
-        range_correct_factor = self.R - 1
+        range_correct_factor = self.left_shifter - 1
         modulus_limbs = self.to_limbs(wrong_modulus)
         aux = [_p * range_correct_factor for _p in modulus_limbs]
 
@@ -150,6 +149,9 @@ class RNS:
     def neg_wrong_modulus_limbs(self):
         return self.to_limbs(self.neg_wrong_modulus)
 
+    def wrong_modulus_limbs(self):
+        return self.to_limbs(self.wrong_modulus)
+
     def overflow_ratio(self):
         return self.T // self.wrong_modulus
 
@@ -159,62 +161,10 @@ class RNS:
             s += hex(e) + " "
         print(desc, hex(self.from_limbs(limbs)), s)
 
-    def residues(self, t, r):
-        assert self.number_of_limbs == 4
-        assert len(t) >= 4
-        assert len(r) == 4
+    def lsh(self, a, n=1):
+        R = self.left_shifter**n
+        return (a * R) % self.native_modulus
 
-        R = self.R
-        S = self.bit_len_limb << 1
-        n = self.native_modulus
-
-        u0 = (t[0] + R * t[1] - r[0] - R * r[1]) % n
-        u1 = (t[2] + R * t[3] - r[2] - R * r[3]) % n
-
-        u1 = (u1 + u0 * self.right_shifter) % n
-
-        return u0, u1
-
-    def check(self, t, r, reporter):
-        # works only for this case
-        assert self.number_of_limbs == 4
-
-        R = self.R
-        S = self.bit_len_limb << 1
-        n = self.native_modulus
-
-        u0 = (t[0] + R * t[1] - r[0] - R * r[1]) % n
-        u1 = (t[2] + R * t[3] - r[2] - R * r[3]) % n
-        u1 = (u1 + (u0 >> S)) % n
-
-        mask = (1 << S) - 1
-
-        failed = None
-        if (u0 & mask != 0) or (u1 & mask != 0):
-            key = (self.wrong_modulus.bit_length(), self.native_modulus.bit_length())
-            fails = reporter["fails"]
-            if key not in fails:
-                fails[key] = 0
-            fails[key] += 1
-
-            failed = True
-
-        u0 = u0 >> S
-        u1 = u1 >> S
-
-        _u0 = u0.bit_length()
-        _u1 = u1.bit_length()
-
-        u0_bit_len = reporter["u0_bit_len"]
-        u1_bit_len = reporter["u1_bit_len"]
-
-        if _u0 not in u0_bit_len:
-            u0_bit_len[_u0] = 0
-
-        if _u1 not in u1_bit_len:
-            u1_bit_len[_u1] = 0
-
-        u0_bit_len[_u0] += 1
-        u1_bit_len[_u1] += 1
-
-        return failed
+    def rsh(self, a, n=1):
+        R = self.right_shifter**n
+        return (a * R) % self.native_modulus

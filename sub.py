@@ -16,9 +16,10 @@ for z in range(1000):
     rns = RNS.setup(bit_len_modulus, crt_modulus_bit_len, number_of_limbs, bit_len_limbs)
     a = rns.rand_int()
     b = rns.rand_int()
-    r, q, t, u0, u1, fails = a - b
+    r, q, t, u0, u1, fails, overflow = a - b
     if fails:
         print("fail")
+        print(overflow)
         print(u0.bit_length())
         print(u1.bit_length())
         break

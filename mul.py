@@ -9,25 +9,25 @@ u0_bit_len = {}
 u1_bit_len = {}
 for j in range(10000):
     rns = RNS.setup(bit_len_modulus, crt_modulus_bit_len, number_of_limbs, bit_len_limbs)
-    # print("o_r", rns.overflow_ratio())
     k = rns.overflow_ratio()
 
     p = rns.wrong_modulus
 
     z = rns.integer_from_value(p - 1)
     a = rns.integer_from_value(0)
-    n = k
-    for i in range(n):
+
+    for i in range(k):
         a = a + z
 
     b = rns.integer_from_value(0)
-    for i in range(n):
+    for i in range(k):
         b = b + z
 
-    r, q, t, u0, u1, fails = a * b
+    r, q, t, u0, u1, fails, intermediate_overflow = a * b
 
     if fails:
         print("fail")
+        print("overflow", intermediate_overflow)
         print(u0.bit_length())
         print(u1.bit_length())
         break
