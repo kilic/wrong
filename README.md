@@ -206,3 +206,26 @@ After having intermediate values the rest goes same as we did in prenormalizatio
 | -   | -   | v_0 | u_0   |
 | t_0 | t_1 | r_0 | r_1   |
 | -   | v_1 | v_0 | u_1   |
+
+
+## Example
+
+Public Inputs: `a`, `b`, `c` are in `[0,p)`
+
+Circuit:
+
+`c == a^3 + 2*a - b^2`
+
+```
+1. t0 = a * a    // t0 in [0,T)
+2. t1 = t0 * a   // t1 in [0,T)
+3. t2 = t1 + a   // t2 in [0, 2T)
+4. t2 = t2 + a   // t2 in [0, 4T)
+5. t3 = b * b    // t3 in [0, T)
+6. t2 = red(T2)  // t2 in [0, T)
+7. t4 = t2 - t3  // t4 in [0, T]
+8. t4 = red(t4)  // t4 in [0, T]
+9. 0 = t4 - c
+```
+
+In the 8. row prover reduces `t4` into the `[0, T)` range however then this value is compared to an integer in `[0, p)` range comes from a public input. So even if prover can pass the reduction step with `[0, T)` ranged value they actually have to reduce this `t4` intermediate to `[0, p)` range to make the comparison check pass.
