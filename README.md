@@ -38,6 +38,8 @@ a * q_a + b * q_b + a * b * q_mul + c * q_c + d * q_d + d_next * q_d_next + q_co
 
 An integer `a` is represented with 4 limbs `a = [a_3, a_2, a_1, a_0]`. Where it's actually a decomposion `a = a_3 * B^3 + a_2 * B^2 a_1 * B + a_0`.
 
+`p'` is the negative wrong modulus value is our only constant integer value:
+
 `p' = T - p = [p'_3, p'_2, p'_1, p'_0]`
 
 We mostly expect that an integer `a < T` and call it prenormalized integer while normalized integer satisfies `a < p`.
