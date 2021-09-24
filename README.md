@@ -204,7 +204,7 @@ After having intermediate values the rest goes same as we did in prenormalizatio
 | a_3 | b_0 | q_0 | tmp_c |
 | t_0 | t_1 | r_0 | r_1   |
 | -   | -   | v_0 | u_0   |
-| t_0 | t_1 | r_0 | r_1   |
+| t_2 | t_3 | r_2 | r_3   |
 | -   | v_1 | v_0 | u_1   |
 
 
