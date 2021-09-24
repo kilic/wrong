@@ -113,6 +113,8 @@ class RNS:
                 assert self.from_limbs(_aux) == self.from_limbs(aux)
                 self.fixed_aux = True
 
+                # FIX: we poorly cover the case where limb1 and limb2 is zero
+
         assert self.from_limbs(aux) % self.wrong_modulus == 0
 
         self.aux = aux

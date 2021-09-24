@@ -49,21 +49,34 @@ class Integer:
         p = self.wrong_modulus()
         value = self.value()
 
-        q = value // p
-        q = q - c
-        assert q < (1 << self.rns.bit_len_limb)
+        def _reduce(p, value, _c):
+            q = value // p
+            q = q - _c
+            return q
+
+        R = (1 << self.rns.bit_len_limb)
+        while True:
+            q = _reduce(p, value, c)
+            if q >= R:
+                c += 1
+            else:
+                break
+
+        assert q < R
         r_val = value % p
         r_val = r_val + c * p
         assert value == p * q + r_val
 
         p = self.rns.neg_wrong_modulus_limbs()
         r = self.rns.to_limbs(r_val)
-        assert self.rns.from_limbs(r) == r_val
+
+        assert self.rns.from_limbs(r) == r_val    # TODO: see the fix in RNS
+
         t = [a + q * p for (a, p) in zip(self.limbs, p)]
 
         v0, v1, fails, overflow = self.residues(t, r)
 
-        return Integer(self.rns, r), q, t, v0, v1, fails, overflow
+        return Integer(self.rns, r), q, t, v0, v1, c, fails, overflow
 
     def residues(self, t, r):
 
@@ -91,9 +104,9 @@ class Integer:
         u1_ = (t[2] + (t[3] << b)) - r[2] - (r[3] << b)
 
         if u0_ >= n or u1_ >= n:
-            print(hex(n))
-            print(hex(u0_))
-            print(hex(u1_))
+            print("u", hex(n))
+            print("u", hex(u0_))
+            print("u", hex(u1_))
             intermediate_overflow = True
 
         u1 = (u1 + rns.rsh(u0, 2))
@@ -117,7 +130,7 @@ class Integer:
         return self.rns.native_modulus
 
     def debug(self, desc=""):
-        s = ""
+        s = hex(self.value())
         for e in reversed(self.limbs):
             s += "\n" + hex(e)
         print(desc, s)
