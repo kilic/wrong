@@ -30,7 +30,7 @@ for offset in range(1, crt_modulus_bit_len // 8 + 1):
         assert a.value() % p == r.value()
         assert q < t_ratio
 
-        single_limb_reduction_bound = p.bit_length() - (crt_modulus_bit_len // 4) * 3 - 1
+        single_limb_reduction_bound = p.bit_length() - bit_len_limb * 3 - 1
 
         a = rns.rand_with_limb_bit_size(bit_len_limb + single_limb_reduction_bound)
         r, q, t, u0, u1 = a.reduce()
