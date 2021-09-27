@@ -138,8 +138,6 @@ __Constrain__:`v_1` is in `[0, B + overflow_1)`
 
 > TODO: about `overflow_i` values in __prenormalization__
 
-> TODO: about quotient adjustment.
-
 ### Layout of prenormalization
 
 | A   | B   | C   | D   |
@@ -152,6 +150,8 @@ __Constrain__:`v_1` is in `[0, B + overflow_1)`
 | -   | -   | v_0 | u_0 |
 | t_2 | t_3 | r_0 | r_1 |
 | -   | -   | v_0 | u_1 |
+
+> TODO: selectors
 
 Note that range checks are not in the layout.
 
@@ -223,6 +223,7 @@ After having intermediate values the rest goes same as we did in prenormalizatio
 | t_2 | t_3 | r_2 | r_3   |
 | -   | v_1 | v_0 | u_1   |
 
+> TODO: selectors
 
 ## Example
 
