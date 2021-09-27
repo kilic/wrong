@@ -1,65 +1,60 @@
 from rns import *
-from random import randint
+from setup import rand_rns
 
 crt_modulus_bit_len = 32
-bit_len_modulus = 28
-bit_len_limbs = 8
-number_of_limbs = 4
 
 u0_bit_len = {}
 u1_bit_len = {}
-c_adjusted = {}
 
-for z in range(1):
+for offset in range(1, crt_modulus_bit_len // 8 + 1):
+    for _ in range(1000):
 
-    rns = RNS.setup(bit_len_modulus, crt_modulus_bit_len, number_of_limbs, bit_len_limbs)
-    p = rns.wrong_modulus
+        rns = rand_rns(crt_modulus_bit_len, offset)
+        p = rns.wrong_modulus
+        bit_len_limb = rns.bit_len_limb
+        R = rns.R
+        t_ratio = rns.overflow_ratio()
 
-    a_val = rns.rand_int().value()
-    number_of_add_chain = (1 << bit_len_limbs)
-    a = rns.integer_from_value(0)
-    for i in range(number_of_add_chain):
-        a = a + rns.integer_from_value(a_val)
+        a = rns.rand()
+        r, q, t, u0, u1 = a.reduce()
+        assert a.value() == r.value()
+        assert q == 0
 
-    r, q, t, u0, u1, c, fails, overflow = a.reduce()
-    if fails:
-        print("fail")
-        print(c)
-        print(overflow)
-        print(u0.bit_length())
-        print(u1.bit_length())
-        break
+        a = rns.max()
+        r, q, t, u0, u1 = a.reduce()
+        assert a.value() % p == r.value()
+        assert q == t_ratio - 1
 
-    assert q < 1 << bit_len_limbs
-    assert r.value() % p == a.value() % p
+        a = rns.rand_in_max()
+        r, q, t, u0, u1 = a.reduce()
+        assert a.value() % p == r.value()
+        assert q < t_ratio
 
-    _u0 = u0.bit_length()
-    _u1 = u1.bit_length()
+        single_limb_reduction_bound = p.bit_length() - (crt_modulus_bit_len // 4) * 3 - 1
 
-    if _u0 not in u0_bit_len:
-        u0_bit_len[_u0] = 0
+        a = rns.rand_with_limb_bit_size(bit_len_limb + single_limb_reduction_bound)
+        r, q, t, u0, u1 = a.reduce()
+        assert a.value() % p == r.value()
+        assert q < R
 
-    if _u1 not in u1_bit_len:
-        u1_bit_len[_u1] = 0
+        _u0 = u0.bit_length()
+        _u1 = u1.bit_length()
 
-    if c not in c_adjusted:
-        c_adjusted[c] = 0
+        if _u0 not in u0_bit_len:
+            u0_bit_len[_u0] = 0
 
-    c_adjusted[c] += 1
-    u0_bit_len[_u0] += 1
-    u1_bit_len[_u1] += 1
+        if _u1 not in u1_bit_len:
+            u1_bit_len[_u1] = 0
 
-print("--- u0 bit")
+        u0_bit_len[_u0] += 1
+        u1_bit_len[_u1] += 1
 
-for key in u0_bit_len.keys():
-    print(key, u0_bit_len[key])
+    print("offset", offset)
+    print("--- u0 bit")
+    for key in u0_bit_len.keys():
+        print(key, u0_bit_len[key])
 
-print("--- u1 bit")
-
-for key in u1_bit_len.keys():
-    print(key, u1_bit_len[key])
-
-print("--- c")
-
-for key in c_adjusted.keys():
-    print(key, c_adjusted[key])
+    print("--- u1 bit")
+    for key in u1_bit_len.keys():
+        print(key, u1_bit_len[key])
+    print("")
