@@ -4,17 +4,9 @@ from int import Integer
 from py_ecc.utils import prime_field_inv
 
 
-def new_reporter():
-    reporter = {}
-    reporter["fails"] = {}
-    reporter["u0_bit_len"] = {}
-    reporter["u1_bit_len"] = {}
-    return reporter
-
-
 class RNS:
 
-    def setup2(
+    def setup(
         wrong_modulus,
         native_modulus,
         crt_modulus_bit_len,
@@ -31,7 +23,7 @@ class RNS:
             bit_len_limb,
         )
 
-    def setup(
+    def rand_setup(
         bit_len_modulus,
         crt_modulus_bit_len,
         number_of_limbs,
@@ -80,6 +72,7 @@ class RNS:
         self.bit_len_limb = bit_len_limb
         self.left_shifter = 1 << bit_len_limb
         self.T = 1 << crt_modulus_bit_len
+        self.R = self.left_shifter
         self.neg_wrong_modulus = (-wrong_modulus) % self.T
         inv_two = prime_field_inv(2, native_modulus)
         self.right_shifter = (inv_two**(self.bit_len_limb)) % native_modulus
@@ -87,61 +80,85 @@ class RNS:
         assert self.T > self.wrong_modulus
         assert self.T > self.native_modulus
 
-        range_correct_factor = self.left_shifter - 1
-        modulus_limbs = self.to_limbs(wrong_modulus)
-        aux = [_p * range_correct_factor for _p in modulus_limbs]
+        wrong_modulus_limbs = self.wrong_modulus_limbs()
+        range_correct_factor = (self.R // wrong_modulus_limbs[self.number_of_limbs - 1]) + 1
 
-        # there is a funny case where a limb of and aux is equal to zero
-        # and therefore can't move limb of the result into the range :/
-        # so we borrow from next limb.
-        self.fixed_aux = False
+        aux = [_p * range_correct_factor for _p in wrong_modulus_limbs]
 
-        for i in range(self.number_of_limbs):
-            if aux[i] == 0:
+        overborrow = False
+        while True:
+            for i in range(self.number_of_limbs):
 
-                # First limb of modulus is zero. Non prime modulus apperently
-                assert i != 0
-                # Last limb of modulus is zero. We expect sparse setup
-                assert i != self.number_of_limbs - 1
+                if aux[i] < self.R:
 
-                this, next = i, i + 1
-                b = self.bit_len_limb
-                _aux = aux[:]
-                aux[this] = ((1 << b) - 1) << b
-                aux[next] = ((aux[next] << b) - aux[this]) >> b
+                    if i == self.number_of_limbs - 1:
+                        overborrow = True
+                        print("overborrow")
+                        break
 
-                assert self.from_limbs(_aux) == self.from_limbs(aux)
-                self.fixed_aux = True
+                    if aux[i] < 0:
+                        # borrow two
+                        aux[i] = aux[i] + self.R + self.R
+                        aux[i + 1] -= 2
 
-                # FIX: we poorly cover the case where limb1 and limb2 is zero
+                    else:
+                        # borrow one
+                        aux[i] = aux[i] + self.R
+                        aux[i + 1] -= 1
 
-        assert self.from_limbs(aux) % self.wrong_modulus == 0
+            if overborrow:
+                range_correct_factor += 1
+                aux = [_p * range_correct_factor for _p in wrong_modulus_limbs]
+                overborrow = False
+            else:
+                break
+
+        for _aux in aux:
+            assert _aux >= self.R
+
+        assert self.value_from_limbs(aux) % self.wrong_modulus == 0
 
         self.aux = aux
 
-    def integer_from_limbs(self, limbs):
+    def from_limbs(self, limbs):
         return Integer(self, limbs)
 
-    def integer_from_value(self, value):
-        limbs = self.to_limbs(value)
-        assert self.from_limbs(limbs) == value
+    def from_value(self, value):
+        limbs = self.value_to_limbs(value)
+        assert self.value_from_limbs(limbs) == value
         return Integer(self, limbs)
 
-    def rand_int(self, limit=-1):
-        if limit == -1:
-            limit = self.wrong_modulus
-        value = randint(0, limit)
-        return self.integer_from_value(value)
+    def rand(self):
+        value = randint(0, self.wrong_modulus - 1)
+        return self.from_value(value)
 
-    def rand_limb(self):
-        return randint(0, 1 << self.bit_len_limb)
+    def rand_in_max(self):
+        value = randint(0, self.T - 1)
+        return self.from_value(value)
 
-    def to_limbs(self, n):
+    def rand_with_limb_bit_size(self, bit_len=0):
+        return self.from_limbs([self.rand_limb(bit_len) for _ in range(self.number_of_limbs)])
+
+    def max(self, bit_len=0):
+        if bit_len == 0:
+            bit_len = self.bit_len_limb
+        return self.from_limbs([(1 << bit_len) - 1] * self.number_of_limbs)
+
+    def zero(self):
+        return self.from_limbs([0] * self.number_of_limbs)
+
+    def rand_limb(self, bit_len=0):
+        bit_len = bit_len if bit_len != 0 else self.bit_len_limb
+        return randint(0, (1 << bit_len) - 1)
+
+    def value_to_limbs(self, n, number_of_limbs=0):
+        if number_of_limbs == 0:
+            number_of_limbs = self.number_of_limbs
         b = self.bit_len_limb
         mask = ((1 << b) - 1)
-        return [n >> (b * i) & mask for i in range(self.number_of_limbs)]
+        return [n >> (b * i) & mask for i in range(number_of_limbs)]
 
-    def from_limbs(self, limbs):
+    def value_from_limbs(self, limbs):
         b = self.bit_len_limb
         acc = 0
         for i in range(len(limbs)):
@@ -149,19 +166,19 @@ class RNS:
         return acc
 
     def neg_wrong_modulus_limbs(self):
-        return self.to_limbs(self.neg_wrong_modulus)
+        return self.value_to_limbs(self.neg_wrong_modulus)
 
     def wrong_modulus_limbs(self):
-        return self.to_limbs(self.wrong_modulus)
+        return self.value_to_limbs(self.wrong_modulus)
 
     def overflow_ratio(self):
-        return self.T // self.wrong_modulus
+        return (self.T // self.wrong_modulus) + 1
 
     def debug_limbs(self, desc, limbs):
         s = ""
         for e in reversed(limbs):
             s += hex(e) + " "
-        print(desc, hex(self.from_limbs(limbs)), s)
+        print(desc, hex(self.value_from_limbs(limbs)), s)
 
     def lsh(self, a, n=1):
         R = self.left_shifter**n
