@@ -61,7 +61,7 @@ class Integer:
         p = self.rns.neg_wrong_modulus_limbs()
         r = self.rns.value_to_limbs(r_val)
 
-        t = [a + q * p for (a, p) in zip(self.limbs, p)]
+        t = [_a + q * _p for (_a, _p) in zip(self.limbs, p)]
         v0, v1 = self.residues(t, r)
 
         return Integer(self.rns, r), q, t, v0, v1

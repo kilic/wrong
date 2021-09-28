@@ -1,17 +1,13 @@
 from rns import *
 from setup import rand_rns
 
-crt_modulus_bit_len = 32
 
-u0_bit_len = {}
-u1_bit_len = {}
+def mul_test(iter, rns):
 
-for offset in range(1, crt_modulus_bit_len // 8 + 1):
-    for _ in range(1000):
+    u0_bit_len, u1_bit_len = {}, {}
+    p = rns.wrong_modulus
 
-        offset = 1
-        rns = rand_rns(crt_modulus_bit_len, offset)
-        p = rns.wrong_modulus
+    for _ in range(iter):
 
         a, b = rns.rand_in_max(), rns.rand_in_max()
 
@@ -30,7 +26,6 @@ for offset in range(1, crt_modulus_bit_len // 8 + 1):
         u0_bit_len[_u0] += 1
         u1_bit_len[_u1] += 1
 
-    print("offset", offset)
     print("--- u0 bit")
     for key in u0_bit_len.keys():
         print(key, u0_bit_len[key])
@@ -39,3 +34,15 @@ for offset in range(1, crt_modulus_bit_len // 8 + 1):
     for key in u1_bit_len.keys():
         print(key, u1_bit_len[key])
     print("")
+
+
+def test():
+    crt_modulus_bit_len = 32
+
+    for offset in range(1, crt_modulus_bit_len // 8 + 1):
+        print("offset", offset)
+        rns = rand_rns(crt_modulus_bit_len, offset)
+        mul_test(1000, rns)
+
+
+# test()

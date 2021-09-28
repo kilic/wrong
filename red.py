@@ -1,19 +1,17 @@
 from rns import *
 from setup import rand_rns
 
-crt_modulus_bit_len = 32
 
-u0_bit_len = {}
-u1_bit_len = {}
+def red_test(iter, rns):
 
-for offset in range(1, crt_modulus_bit_len // 8 + 1):
-    for _ in range(1000):
+    u0_bit_len, u1_bit_len = {}, {}
 
-        rns = rand_rns(crt_modulus_bit_len, offset)
-        p = rns.wrong_modulus
-        bit_len_limb = rns.bit_len_limb
-        R = rns.R
-        t_ratio = rns.overflow_ratio()
+    p = rns.wrong_modulus
+    bit_len_limb = rns.bit_len_limb
+    R = rns.R
+    t_ratio = rns.overflow_ratio()
+
+    for _ in range(iter):
 
         a = rns.rand()
         r, q, t, u0, u1 = a.reduce()
@@ -30,9 +28,10 @@ for offset in range(1, crt_modulus_bit_len // 8 + 1):
         assert a.value() % p == r.value()
         assert q < t_ratio
 
-        single_limb_reduction_bound = p.bit_length() - bit_len_limb * 3 - 1
+        # single_limb_reduction_bound = p.bit_length() - bit_len_limb * 3 - 1
+        bound = rns.single_limb_upper_bound()
 
-        a = rns.rand_with_limb_bit_size(bit_len_limb + single_limb_reduction_bound)
+        a = rns.rand_with_limb_bit_size(bound)
         r, q, t, u0, u1 = a.reduce()
         assert a.value() % p == r.value()
         assert q < R
@@ -49,7 +48,9 @@ for offset in range(1, crt_modulus_bit_len // 8 + 1):
         u0_bit_len[_u0] += 1
         u1_bit_len[_u1] += 1
 
-    print("offset", offset)
+        assert bit_len_limb + 1 not in u0_bit_len
+        assert bit_len_limb + 1 not in u1_bit_len
+
     print("--- u0 bit")
     for key in u0_bit_len.keys():
         print(key, u0_bit_len[key])
@@ -57,4 +58,16 @@ for offset in range(1, crt_modulus_bit_len // 8 + 1):
     print("--- u1 bit")
     for key in u1_bit_len.keys():
         print(key, u1_bit_len[key])
-    print("")
+
+
+#
+def test():
+    crt_modulus_bit_len = 16
+
+    for offset in range(1, crt_modulus_bit_len // 8 + 1):
+        print("offset", offset)
+        rns = rand_rns(crt_modulus_bit_len, offset)
+        red_test(1000, rns)
+
+
+# test()
