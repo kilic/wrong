@@ -2,7 +2,7 @@ def max_el(bit_len):
     return (1 << bit_len) - 1
 
 
-bit_len = 8
+bit_len = 64
 
 print("mul")
 
@@ -36,9 +36,8 @@ print("red")
 
 import sympy
 
-bit_len_modulus = bit_len * 4 - 1
 a = (1 << bit_len) - 1
-k_a = 10
+k_a = 1
 
 a = a * k_a
 q = k_a

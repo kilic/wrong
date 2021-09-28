@@ -142,7 +142,12 @@ class RNS:
     def max(self, bit_len=0):
         if bit_len == 0:
             bit_len = self.bit_len_limb
-        return self.from_limbs([(1 << bit_len) - 1] * self.number_of_limbs)
+        return self.from_limbs([self.max_limb(bit_len)] * self.number_of_limbs)
+
+    def max_limb(self, bit_len=0):
+        if bit_len == 0:
+            bit_len = self.bit_len_limb
+        return (1 << bit_len) - 1
 
     def zero(self):
         return self.from_limbs([0] * self.number_of_limbs)
@@ -187,3 +192,67 @@ class RNS:
     def rsh(self, a, n=1):
         R = self.right_shifter**n
         return (a * R) % self.native_modulus
+
+    def single_limb_upper_bound(self):
+        # TODO: reserch more on this val
+        return self.wrong_modulus.bit_length() - self.bit_len_limb * 2 - 1
+        # return self.bit_len_limb + self.bit_len_limb // 8
+
+
+def analyse(rns):
+    from red import red_test
+    from mul import mul_test
+
+    print("modulus bit len", rns.wrong_modulus.bit_length())
+
+    T = rns.T
+    R = rns.R
+
+    a = rns.max()
+    a.debug("a max in T")
+
+    a = a.value()
+    b = rns.max().value()
+    p = rns.wrong_modulus
+    c = a * b
+    q = c // rns.wrong_modulus
+    assert q > T
+
+    bound = rns.single_limb_upper_bound()
+    print("upper bound", bound)
+    a = rns.max(bound)
+    a.debug("a max in overflow")
+    a = a.value()
+    q_val = a // rns.wrong_modulus
+    assert q_val < R
+
+    # bound += 1
+    # a = rns.max(bound).value()
+    # q_val = a // rns.wrong_modulus
+    # assert q_val > R
+
+    a = rns.max(bound)
+    a_val = a.value()
+    q = a_val // rns.wrong_modulus
+
+    print("intermediates for max number:")
+    r = 0
+    p = rns.wrong_modulus_limbs()
+    t_0 = a[0] + p[0] * q
+    t_1 = a[1] + p[1] * q
+    u_0 = (t_0 - r) + R * (t_1 - r)
+    print("u 0 bit len", u_0.bit_length())
+    v_0 = u_0 // (R * R)
+    print("v 0 bit len", v_0.bit_length())
+
+    t_2 = a[2] + p[2] * q
+    t_3 = a[3] + p[3] * q
+    u_1 = (t_2 - r) + R * (t_3 - r)
+    print("u_1 bit len", u_1.bit_length())
+    v_1 = (u_1 // (R**2)) + (u_0 // (R**4))
+    print("v_1 bit len", v_1.bit_length())
+
+    print("red test")
+    red_test(100000, rns)
+    print("mul test")
+    mul_test(100000, rns)
