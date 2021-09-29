@@ -81,6 +81,7 @@ class RNS:
         assert self.T > self.native_modulus
 
         wrong_modulus_limbs = self.wrong_modulus_limbs()
+
         range_correct_factor = (self.R // wrong_modulus_limbs[self.number_of_limbs - 1]) + 1
 
         aux = [_p * range_correct_factor for _p in wrong_modulus_limbs]
@@ -89,22 +90,15 @@ class RNS:
         while True:
             for i in range(self.number_of_limbs):
 
-                if aux[i] < self.R:
+                if aux[i] < self.R - 1:
 
                     if i == self.number_of_limbs - 1:
                         overborrow = True
                         print("overborrow")
                         break
 
-                    if aux[i] < 0:
-                        # borrow two
-                        aux[i] = aux[i] + self.R + self.R
-                        aux[i + 1] -= 2
-
-                    else:
-                        # borrow one
-                        aux[i] = aux[i] + self.R
-                        aux[i + 1] -= 1
+                    aux[i] = aux[i] + self.R
+                    aux[i + 1] -= 1
 
             if overborrow:
                 range_correct_factor += 1
@@ -114,7 +108,7 @@ class RNS:
                 break
 
         for _aux in aux:
-            assert _aux >= self.R
+            assert _aux >= self.R - 1
 
         assert self.value_from_limbs(aux) % self.wrong_modulus == 0
 
@@ -195,7 +189,7 @@ class RNS:
 
     def single_limb_upper_bound(self):
         # TODO: reserch more on this val
-        return self.wrong_modulus.bit_length() - self.bit_len_limb * 2 - 1
+        return self.wrong_modulus.bit_length() - self.bit_len_limb * 2 - 2
         # return self.bit_len_limb + self.bit_len_limb // 8
 
 
@@ -204,6 +198,9 @@ def analyse(rns):
     from mul import mul_test
 
     print("modulus bit len", rns.wrong_modulus.bit_length())
+
+    for a in rns.aux:
+        print("aux:", hex(a))
 
     T = rns.T
     R = rns.R
@@ -224,6 +221,7 @@ def analyse(rns):
     a.debug("a max in overflow")
     a = a.value()
     q_val = a // rns.wrong_modulus
+    print(hex(q_val), q_val == R)
     assert q_val < R
 
     # bound += 1
