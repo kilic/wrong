@@ -63,6 +63,8 @@ Notice that we will use further cells in `column_d` to check recomposition.
 
 Cost: 2 rows for a limb, 8 rows for an intger
 
+We might want to use wider circuit equation and make range check single row.
+
 ## Addition
 
 Addition is straight forward:
@@ -231,6 +233,8 @@ After having intermediate values the rest goes same as we did in prenormalizatio
 > TODO: selectors
 
 Cost: 14 + 2 * limb_range_check + 2 * integer_range_check = 34 rows
+
+Cost estimated after width adjustent: 20 rows
 
 
 ## Example
