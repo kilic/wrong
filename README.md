@@ -61,6 +61,8 @@ Notice that we will use further cells in `column_d` to check recomposition.
 | u1 | u2 | u3       | u4 |
 | -  | -  | overflow | u  |
 
+Cost: 2 rows for a limb, 8 rows for an intger
+
 ## Addition
 
 Addition is straight forward:
@@ -74,8 +76,11 @@ Modular reduction is not neccerarily applied right after the addition. It leaves
 | A  | B  | C  | D |
 | -- | -- | -- | - |
 | a1 | b1 | c1 | - |
-| a2 | b2 | c1 | - |
-| a3 | b3 | c1 | - |
+| a2 | b2 | c2 | - |
+| a3 | b3 | c3 | - |
+| a4 | b4 | c4 | - |
+
+Cost: 4 rows
 
 ## Prenormalize
 
@@ -143,12 +148,14 @@ __Constrain__:`v_1` is in `[0, B + overflow_1)`
 | a_3 | q   | t_3 | -   |
 | t_0 | t_1 | r_0 | r_1 |
 | -   | -   | v_0 | u_0 |
-| t_2 | t_3 | r_0 | r_1 |
+| t_2 | t_3 | r_2 | r_3 |
 | -   | v_1 | v_0 | u_1 |
 
 > TODO: selectors
 
 Note that range checks are not in the layout.
+
+Cost: 8 + 3 * limb_range_check + 1 * integer_range_check = 24 rows
 
 ## Subtraction
 
@@ -165,10 +172,13 @@ So, corrected result `c_i` will be in `[0,2B)`. To continiue working with same i
 | A  | B  | C  | D |
 | -- | -- | -- | - |
 | a1 | b1 | c1 | - |
-| a2 | b2 | c1 | - |
-| a3 | b3 | c1 | - |
+| a2 | b2 | c2 | - |
+| a3 | b3 | c3 | - |
+| a4 | b4 | c4 | - |
 
 Notice that `p * aux` is constant and values are placed in fixed columns.
+
+Cost: 4 rows
 
 ## Multiplication
 
@@ -219,6 +229,9 @@ After having intermediate values the rest goes same as we did in prenormalizatio
 | -   | v_1 | v_0 | u_1   |
 
 > TODO: selectors
+
+Cost: 14 + 2 * limb_range_check + 2 * integer_range_check = 34 rows
+
 
 ## Example
 
