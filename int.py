@@ -112,7 +112,7 @@ class Integer:
         return self.rns.native_modulus
 
     def debug(self, desc=""):
-        s = desc + ": " + hex(self.value()) + "\n"
-        for e in reversed(self.limbs):
-            s += hex(e) + " "
-        print(s)
+        s = desc + ": " + hex(self.value()) + "\n" + "["
+        for e in self.limbs:
+            s += hex(e) + ", "
+        print(s, "]")
