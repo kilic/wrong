@@ -123,13 +123,8 @@ __Constrain__: first `2b` bits of `u_0` is zero
 __Constrain__: first `2b` bits of `u_1 + u_0 / R^2` is zero
 
 ```
-v_0 = u_0 / R^2
 v_0 * 2R = u_0
-
-
-v_1 = (u_1 + u_0 / R^2) / R^2
-v_1 = u_1 / R^2 + u_0 / R^4
-v_1 * 4R = u_1 * 2R + u_0
+v_1 * 2R = u_1 + v_0
 ```
 
 __Constrain__:`v_0` is in `[0, B + overflow_0)`
@@ -149,7 +144,7 @@ __Constrain__:`v_1` is in `[0, B + overflow_1)`
 | t_0 | t_1 | r_0 | r_1 |
 | -   | -   | v_0 | u_0 |
 | t_2 | t_3 | r_0 | r_1 |
-| -   | -   | v_0 | u_1 |
+| -   | v_1 | v_0 | u_1 |
 
 > TODO: selectors
 
