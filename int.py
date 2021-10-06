@@ -30,6 +30,46 @@ class Integer:
 
         return Integer(self.rns, r), q, t, v0, v1
 
+    def bad_mul(self, other):
+
+        self_val = self.value()
+        other_val = other.value()
+        p_val = self.wrong_modulus()
+
+        T = self.rns.T
+        q_T_val = T // p_val
+        r_T_val = T % p_val
+
+        q_val = (self_val * other_val) // p_val
+        r_val = (self_val * other_val) % p_val
+
+        q_fixed = q_val - q_T_val
+        r_fixed = r_val - r_T_val
+        if r_fixed < 0:
+            r_fixed = r_fixed + p_val
+            q_fixed = q_fixed - 1
+
+        print(q_val * p_val + r_val == self_val * other_val)
+        print(q_fixed * p_val + r_fixed == self_val * other_val)
+
+        q_val = q_fixed
+        r_val = r_fixed
+
+        N = self.rns.number_of_limbs
+        p = self.rns.neg_wrong_modulus_limbs()
+        q = self.rns.value_to_limbs(q_val, N + 1)
+        r = self.rns.value_to_limbs(r_val)
+        n = self.rns.native_modulus
+
+        t = [0] * (2 * N - 1)
+        for i in range(N):
+            for j in range(N):
+                t[i + j] = (t[i + j] + self[i] * other[j] + p[i] * q[j]) % n
+
+        v0, v1 = self.residues(t, r)
+
+        return Integer(self.rns, r), q, t, v0, v1
+
     def __add__(self, other):
         res = self.rns.from_limbs([(a + b) % self.native_modulus() for (a, b) in zip(self.limbs, other.limbs)])
         assert res.value() == self.value() + other.value()
