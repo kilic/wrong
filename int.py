@@ -28,6 +28,52 @@ class Integer:
 
         v0, v1 = self.residues(t, r)
 
+        _q = self.rns.from_limbs(q)
+        _r = self.rns.from_limbs(r)
+
+        must_be_zero = self.value() * other.value()
+        must_be_zero = must_be_zero - p_val * _q.value()
+        must_be_zero = must_be_zero - _r.value()
+        assert must_be_zero % n == 0
+
+        return Integer(self.rns, r), q, t, v0, v1
+
+    def bad_mul_2(self, other):
+
+        T = self.rns.T
+        p_val = self.wrong_modulus()
+        n = self.rns.native_modulus
+        q_val = n * T // p_val
+        r_val = n * T % p_val
+
+        print("T ", hex(T))
+        print("n ", hex(n))
+        print("q ", hex(q_val), "expect true:", q_val < T)
+        print("r ", hex(r_val), "expect true:", r_val < p_val)
+        print("nT", hex(n * T))
+
+        N = self.rns.number_of_limbs
+        p = self.rns.neg_wrong_modulus_limbs()
+        q = self.rns.value_to_limbs(q_val, N + 1)
+        r = self.rns.value_to_limbs(r_val)
+
+        n = self.rns.native_modulus
+
+        t = [0] * (2 * N - 1)
+        for i in range(N):
+            for j in range(N):
+                t[i + j] = (t[i + j] + self[i] * other[j] + p[i] * q[j]) % n
+
+        v0, v1 = self.residues(t, r)
+
+        _q = self.rns.from_limbs(q)
+        _r = self.rns.from_limbs(r)
+
+        must_be_zero = self.value() * other.value()
+        must_be_zero = must_be_zero - p_val * _q.value()
+        must_be_zero = must_be_zero - _r.value()
+        assert must_be_zero % n == 0
+
         return Integer(self.rns, r), q, t, v0, v1
 
     def bad_mul(self, other):
@@ -42,6 +88,8 @@ class Integer:
 
         q_val = (self_val * other_val) // p_val
         r_val = (self_val * other_val) % p_val
+        print("q", hex(q_val), hex(q_T_val), q_val < p_val)
+        print("r", hex(r_val), hex(r_T_val), r_val < p_val)
 
         q_fixed = q_val - q_T_val
         r_fixed = r_val - r_T_val
@@ -49,8 +97,12 @@ class Integer:
             r_fixed = r_fixed + p_val
             q_fixed = q_fixed - 1
 
-        print(q_val * p_val + r_val == self_val * other_val)
-        print(q_fixed * p_val + r_fixed == self_val * other_val)
+        print("q_f", hex(q_fixed))
+        print("r_f", hex(r_fixed))
+
+        print("expect true", q_val * p_val + r_val == self_val * other_val)
+        print("expect false", q_fixed * p_val + r_fixed == self_val * other_val)
+        print("diff", hex((q_val * p_val + r_val) - (q_fixed * p_val + r_fixed)))
 
         q_val = q_fixed
         r_val = r_fixed
@@ -131,8 +183,11 @@ class Integer:
         u1_ = (t[2] + (t[3] << b)) - r[2] - (r[3] << b)
         assert u0_ < n
         assert u1_ < n
+        # print("u", hex(u0))
+        # print("u", hex(u1))
 
         u1 = (u1 + rns.rsh(u0, 2))
+        # print("u", hex(u1))
 
         assert u0 & mask == 0
         assert u1 & mask == 0
@@ -144,6 +199,9 @@ class Integer:
 
     def value(self):
         return self.rns.value_from_limbs(self.limbs)
+
+    def native(self):
+        return self.value() % self.rns.native_modulus
 
     def wrong_modulus(self):
         return self.rns.wrong_modulus
