@@ -2,7 +2,7 @@
 
 This uncomplete and draft wrong field implementation spec is mostly targetting ~256 bit base field on ~256 bit operation field such as BN254, secpk256 base fields on BN254 scalar field. And [solution from AZTEC](https://hackmd.io/@arielg/B13JoihA8) team is closely followed.
 
-In layouts we use simple standart 4 width plonk gate with single further cell customization in `column_d`.
+In layouts we use simple standard 4 width plonk gate with single further cell customization in `column_d`.
 
 ```
 a * q_a + b * q_b + a * b * q_mul + c * q_c + d * q_d + d_next * q_d_next + q_constant = 0
@@ -50,7 +50,7 @@ We will need to constaint some cells to be in `[0,B)` or `[0,B + overflow]`. Not
 
 `u = (u_3 * L^3 + u_2 * L^2 * u_1 * L + u_0) + L^4 * overflow`.
 
-To constain an integer to be in prenormalized form `a < T` rather than the to be an actual field element `a < p`. So each limb of and integer is decomposed in smaller 4 chunks. And these chunks are checked if they are in lookup table and then we recompose the limb with values int the table and check if it is equal to proposed limb.
+To constain an integer to be in prenormalized form `u < T` rather than the to be an actual field element `u < p`. So each limb of and integer is decomposed in smaller 4 chunks. And these chunks are checked if they are in lookup table and then we recompose the limb with values in the table and check if it is equal to proposed limb.
 
 ### Layout
 
@@ -58,10 +58,10 @@ Notice that we will use further cells in `column_d` to check recomposition.
 
 | A  | B  | C        | D  |
 | -- | -- | -------- | -- |
-| u1 | u2 | u3       | u4 |
-| -  | -  | overflow | u  |
+| u0 | u1 | u2       | u3 |
+| -  | overflow | u | (u_3 * L^3 + u_2 * L^2 * u_1 * L + u_0)  |
 
-Cost: 2 rows for a limb, 8 rows for an intger
+Cost: 2 rows for a limb, 8 rows for an integer
 
 We might want to use wider circuit equation and make range check single row.
 
@@ -96,7 +96,7 @@ q' = (q - β)
 r' = (r + β * p)
 ```
 
-Whatever the shift value `β` is set, result `r` is always in `[0, T)`.
+Whatever the shift value `β` is set, the result `r` or `r'` is always in `[0, T)`.
 
 __Constrain__: `r_i` to be in `[0, B)`.
 
@@ -127,11 +127,11 @@ u_1 = t_2 + t_3 * B - r_2 - r_3 * B
 
 __Constrain__: first `2b` bits of `u_0` is zero
 
-__Constrain__: first `2b` bits of `u_1 + u_0 / R^2` is zero
+__Constrain__: first `2b` bits of `u_1 + v_0 / B^2` is zero
 
 ```
-v_0 * 2R = u_0
-v_1 * 2R = u_1 + v_0
+v_0 * B^2 = u_0
+v_1 * B^2 = u_1 + v_0
 ```
 
 __Constrain__:`v_0` is in `[0, B + overflow_0)`
@@ -157,7 +157,7 @@ __Constrain__:`v_1` is in `[0, B + overflow_1)`
 
 Note that range checks are not in the layout.
 
-Cost: 8 + 3 * limb_range_check + 1 * integer_range_check = 24 rows
+Cost: 8 + 3 * limb_range_check + 1 * integer_range_check = 22 rows
 
 ## Subtraction
 
@@ -167,7 +167,7 @@ We apply subtraction as `c = a - b + aux` with a range correction aux value wher
 
 `c = a - b = [a_i - b_i + aux_i]`
 
-So, corrected result `c_i` will be in `[0,2B)`. To continiue working with same integer we might apply prenormalization to the intermediate result `c` in order to reduce the result back to `[0,T)`.
+So, corrected result `c_i` will be in `[0,2B)`. To continue working with same integer we might apply prenormalization to the intermediate result `c` in order to reduce the result back to `[0,T)`.
 
 ### Layout of subtraction
 
@@ -178,7 +178,7 @@ So, corrected result `c_i` will be in `[0,2B)`. To continiue working with same i
 | a3 | b3 | c3 | - |
 | a4 | b4 | c4 | - |
 
-Notice that `p * aux` is constant and values are placed in fixed columns.
+Notice that `aux` is constant and values are placed in fixed columns.
 
 Cost: 4 rows
 
@@ -187,7 +187,7 @@ Cost: 4 rows
 Multiplication will be constrained as `a * b = q * p + r` where `q` and `r` witness values. Notice that prover also can use shifted quotient and result values as it also happens in subtraction. Operands of multiplication must be in `[0, T)`.
 
 ```
-a = (q - β) * p + (r + β * p)
+a * b = (q - β) * p + (r + β * p)
 q' = (q - β)
 r' = (r + β * p)
 ```
