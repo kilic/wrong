@@ -1,3 +1,4 @@
+from wrong.limb import Limb
 from wrong.rns import RNS, Range
 from wrong.ecc import *
 
@@ -45,6 +46,62 @@ def test_rns():
     print(hex(rns.max_remainder_value))
 
 
+def test_residues():
+
+    # mul
+
+    w = bn254_p
+    n = native_modulus
+    rns = RNS.setup(limb_size, w, native_modulus, number_of_limbs)
+
+    a = rns.max_operand_int()
+    a = [l.max_val for l in a]
+
+    p = [l.value for l in rns.neg_wrong_modulus_limbs()]
+    q = [rns.max_reduced_limb_val, rns.max_reduced_limb_val, rns.max_reduced_limb_val, rns.max_most_significant_mul_quotient_limb_val]
+
+    t = [0] * (2 * rns.number_of_limbs - 1)
+    for i in range(rns.number_of_limbs):
+        for j in range(rns.number_of_limbs):
+            t[i + j] = t[i + j] + a[i] * a[j] + p[i] * q[j]
+
+    b = rns.bit_len_limb
+    u0 = t[0] + (t[1] << b)
+    u1 = t[2] + (t[3] << b)
+
+    u1 = u1 + (u0 >> (2 * b))
+
+    v0 = u0 >> (2 * b)
+    v1 = u1 >> (2 * b)
+
+    print("mul v0", v0.bit_length())
+    print("mul v1", v1.bit_length())
+
+    # red
+
+    a = [Limb.new(rns.max_unreduced_limb_val, rns.native_modulus, rns.max_unreduced_limb_val)] * rns.number_of_limbs
+    value = rns.value_from_limbs(a)
+    # print(hex(value))
+    # print(hex(value // rns.wrong_modulus))
+    q_max = (value // rns.wrong_modulus) + 1
+    assert q_max < (1 << b)
+    q = rns.max_reduced_limb_val
+
+    a = [rns.max_unreduced_limb_val] * number_of_limbs
+    t = [_a + q * _p for (_a, _p) in zip(a, p)]
+
+    u0 = t[0] + (t[1] << b)
+    u1 = t[2] + (t[3] << b)
+
+    u1 = u1 + (u0 >> (2 * b))
+
+    v0 = u0 >> (2 * b)
+    v1 = u1 >> (2 * b)
+
+    print("red v0", v0.bit_length())
+    print("red v1", v1.bit_length())
+
+
 def test_operations():
     w = bn254_p
     n = native_modulus
@@ -69,15 +126,15 @@ def test_operations():
     q = rns.value_from_limbs(q)
     assert a.value() * b.value() == q * w + c.value()
 
-    print("mul residues max bit len")
-    print(v0.max_val.bit_length())
-    print(v1.max_val.bit_length())
-
     a = rns.max_operand_int()
     b = rns.max_operand_int()
     c, q, t, v0, v1 = a * b
     q = rns.value_from_limbs(q)
     assert a.value() * b.value() == q * w + c.value()
+
+    print("mul residues max bit len")
+    print(v0.max_val.bit_length())
+    print(v1.max_val.bit_length())
 
     a = rns.rand_in_remainder_range()
     for i in range(1000):
