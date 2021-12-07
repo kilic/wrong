@@ -65,6 +65,8 @@ Cost: 2 rows for a limb, 8 rows for an integer
 
 We might want to use wider circuit equation and make range check single row.
 
+We might want to use wider circuit equation and make range check single row.
+
 ## Addition
 
 Addition is straight forward:
