@@ -1,6 +1,14 @@
 from __future__ import annotations
 from random import randint
 from py_ecc.utils import prime_field_inv
+from enum import Enum
+
+
+class Range(Enum):
+    REMAINDER = 1
+    OPERAND = 2
+    MUL_QUOTIENT = 3
+    CONSTANT = 4
 
 
 class RNS:
@@ -94,7 +102,7 @@ class RNS:
         assert self.nT > (max_operand_value_pre_q * max_operand_value_pre_q)
         assert max_operand_value_pre_q > wrong_modulus
 
-        # nT > q*w + r
+        # n * T > q*w + r
         self.max_remainder_value = (1 << wrong_modulus_bit_len) - 1
         max_mul_quotient_raw = (self.nT - self.max_remainder_value) // wrong_modulus
         self.max_mul_quotient = (1 << (max_mul_quotient_raw.bit_length() - 1)) - 1
@@ -119,13 +127,19 @@ class RNS:
         self.max_most_significant_operand_limb_val = self.max_operand_value >> (3 * bit_len_limb)
         # TODO: this is just a placeholder not so accurate
         self.max_most_significant_unreduced_limb_val = self.max_unreduced_limb_val
+        self.max_most_significant_mul_quotient_limb_val = self.max_mul_quotient >> (3 * bit_len_limb)
 
         acc = 0
         for i in range(number_of_limbs - 1):
             acc += self.max_reduced_limb_val << (self.bit_len_limb * i)
         acc += self.max_most_significant_reduced_limb_val << (self.bit_len_limb * (number_of_limbs - 1))
-
         assert acc == self.max_remainder_value
+
+        acc = 0
+        for i in range(number_of_limbs - 1):
+            acc += self.max_reduced_limb_val << (self.bit_len_limb * i)
+        acc += self.max_most_significant_mul_quotient_limb_val << (self.bit_len_limb * (number_of_limbs - 1))
+        assert acc == self.max_mul_quotient
 
         self.aux_limbs = self.calculate_aux()
         self.aux_val = self.value_from_limbs(self.aux_limbs)
@@ -140,23 +154,29 @@ class RNS:
         bit_len = bit_len if bit_len != 0 else self.bit_len_limb
         return randint(0, (1 << bit_len) - 1)
 
-    def max_most_significant_limb_val(self, overflow=False) -> int:
-        return self.max_most_significant_operand_limb_val if overflow else self.max_most_significant_reduced_limb_val
+    def max_most_significant_limb_val(self, overflow=Range.REMAINDER) -> int:
+        if overflow == Range.REMAINDER:
+            return self.max_most_significant_reduced_limb_val
+        elif overflow == Range.OPERAND:
+            return self.max_most_significant_operand_limb_val
+        elif overflow == Range.MUL_QUOTIENT:
+            return self.max_most_significant_mul_quotient_limb_val
+
+        assert False
 
     def from_limbs(self, limbs: list[Limb]) -> Integer:
         return Integer(self, limbs)
 
-    def from_value(self, value: int, overflow=False) -> Integer:
+    def from_value(self, value: int, overflow=Range.REMAINDER) -> Integer:
         limbs = self.value_to_limbs(value, overflow)
         assert self.value_from_limbs(limbs) == value
-        assert value <= self.max_operand_value if overflow else self.max_remainder_value
         return self.from_limbs(limbs)
 
     def max_remainder_int(self):
-        return self.from_value(self.max_remainder_value, True)
+        return self.from_value(self.max_remainder_value, Range.REMAINDER)
 
     def max_operand_int(self):
-        return self.from_value(self.max_operand_value, True)
+        return self.from_value(self.max_operand_value, Range.OPERAND)
 
     def rand_in_field(self) -> Integer:
         value = randint(0, self.wrong_modulus - 1)
@@ -164,28 +184,29 @@ class RNS:
 
     def rand_in_remainder_range(self) -> Integer:
         value = randint(0, self.max_remainder_value)
-        return self.from_value(value, False)
+        return self.from_value(value, Range.REMAINDER)
 
     def rand_in_operand_range(self) -> Integer:
         value = randint(0, self.max_operand_value)
-        return self.from_value(value, True)
+        return self.from_value(value, Range.OPERAND)
 
-    def rand_with_limb_bit_size(self, bit_len: int = 0, overflow=False) -> Integer:
+    def rand_with_limb_bit_size(self, bit_len: int = 0, overflow=Range.REMAINDER) -> Integer:
         return self.from_limbs([self.rand_limb(bit_len) for _ in range(self.number_of_limbs)], overflow)
 
     def zero(self) -> Integer:
         return self.from_limbs([0] * self.number_of_limbs)
 
-    def value_to_limbs(self, n: int, overflow=False) -> list[Limb]:
+    def value_to_limbs(self, n: int, overflow=Range.REMAINDER) -> list[Limb]:
+        is_constant = overflow == Range.CONSTANT
         b = self.bit_len_limb
         mask = ((1 << b) - 1)
         limbs = []
         for i in range(self.number_of_limbs):
             value = n >> (b * i) & mask
             if i == self.number_of_limbs - 1:
-                limbs.append(Limb(value, self.native_modulus, self.max_most_significant_limb_val(overflow)))
+                limbs.append(Limb(value, self.native_modulus, value if is_constant else self.max_most_significant_limb_val(overflow)))
             else:
-                limbs.append(Limb(value, self.native_modulus, self.max_limb()))
+                limbs.append(Limb(value, self.native_modulus, value if is_constant else self.max_limb()))
 
         return limbs
 
@@ -204,10 +225,22 @@ class RNS:
         return acc
 
     def neg_wrong_modulus_limbs(self) -> list[Limb]:
-        return self.value_to_limbs(self.neg_wrong_modulus)
+        b = self.bit_len_limb
+        mask = ((1 << b) - 1)
+        limbs = []
+        for i in range(self.number_of_limbs):
+            value = self.neg_wrong_modulus >> (b * i) & mask
+            limbs.append(Limb(value, self.native_modulus, value))
+        return limbs
 
     def wrong_modulus_limbs(self) -> list[Limb]:
-        return self.value_to_limbs(self.wrong_modulus)
+        b = self.bit_len_limb
+        mask = ((1 << b) - 1)
+        limbs = []
+        for i in range(self.number_of_limbs):
+            value = self.wrong_modulus >> (b * i) & mask
+            limbs.append(Limb(value, self.native_modulus, value))
+        return limbs
 
     def overflow_ratio(self) -> int:
         return (self.binary_modulus // self.wrong_modulus) + 1

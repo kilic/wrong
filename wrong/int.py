@@ -20,14 +20,14 @@ class Integer:
 
         N = self.rns.number_of_limbs
         p = self.rns.neg_wrong_modulus_limbs()
-        q = self.rns.value_to_limbs(q_val, True)
+        q = self.rns.value_to_limbs(q_val, Range.MUL_QUOTIENT)
         r = self.rns.value_to_limbs(r_val)
         n = self.rns.native_modulus
 
         t = [Limb.zero(self.rns.native_modulus)] * (2 * N - 1)
         for i in range(N):
             for j in range(N):
-                t[i + j] = (t[i + j] + self[i] * other[j] + p[i] * q[j])
+                t[i + j] = t[i + j] + self[i] * other[j] + p[i] * q[j]
 
         v0, v1 = self.residues(t, r)
 
@@ -35,6 +35,23 @@ class Integer:
         must_be_zero = must_be_zero - p_val * q_val
         must_be_zero = must_be_zero - r_val
         assert must_be_zero % n == 0
+
+        return self.rns.from_limbs(r), q, t, v0, v1
+
+    def reduce(self) -> tuple[Integer, Limb, list[Limb], Limb, Limb]:
+        p = self.wrong_modulus()
+        value = self.value()
+
+        q = (value // p)
+        r = (value % p)
+
+        p = self.rns.neg_wrong_modulus_limbs()
+        r = self.rns.value_to_limbs(r)
+
+        q = Limb(q, self.rns.native_modulus, self.rns.max_reduced_limb_val)
+
+        t = [_a + q * _p for (_a, _p) in zip(self.limbs, p)]
+        v0, v1 = self.residues(t, r)
 
         return self.rns.from_limbs(r), q, t, v0, v1
 
@@ -68,6 +85,7 @@ class Integer:
         return self.max_val() > self.rns.max_operand_value
 
     def must_reduce_by_a_limb(self) -> bool:
+
         ret = False
         for limb in self.limbs:
             ret = ret | (limb.max_val > self.rns.max_unreduced_limb_val)
@@ -79,21 +97,6 @@ class Integer:
             return True
 
         return False
-
-    def reduce(self) -> Integer:
-        p = self.wrong_modulus()
-        value = self.value()
-
-        q = (value // p)
-        r = (value % p)
-
-        p = self.rns.neg_wrong_modulus_limbs()
-        r = self.rns.value_to_limbs(r)
-
-        t = [_a + q * _p for (_a, _p) in zip(self.limbs, p)]
-        v0, v1 = self.residues(t, r)
-
-        return self.rns.from_limbs(r), q, t, v0, v1
 
     def residues(self, t: list[Limb], r: list[Limb]) -> tuple[Limb, Limb]:
 
@@ -152,4 +155,4 @@ class Integer:
 
 
 from wrong.limb import Limb
-from wrong.rns import RNS
+from wrong.rns import RNS, Range

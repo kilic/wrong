@@ -1,4 +1,4 @@
-from wrong.rns import RNS
+from wrong.rns import RNS, Range
 from wrong.ecc import *
 
 number_of_limbs = 4
@@ -28,6 +28,9 @@ def test_rns():
     assert 0 == rns.aux_val % rns.wrong_modulus
     assert rns.rand_in_remainder_range().must_reduce_by_sum() is False
     assert rns.rand_in_operand_range().must_reduce_by_sum() is False
+
+    w = rns.from_value(wrong_modulus, Range.CONSTANT)
+    assert w.max_val() == wrong_modulus
 
     print("max mul q")
     print(rns.max_mul_quotient.bit_length())
@@ -66,7 +69,7 @@ def test_operations():
     q = rns.value_from_limbs(q)
     assert a.value() * b.value() == q * w + c.value()
 
-    print("residues max bit len")
+    print("mul residues max bit len")
     print(v0.max_val.bit_length())
     print(v1.max_val.bit_length())
 
@@ -76,44 +79,93 @@ def test_operations():
     q = rns.value_from_limbs(q)
     assert a.value() * b.value() == q * w + c.value()
 
-    # a = rns.rand_in_remainder_range()
-    # for i in range(1000):
-    #     a = a + a
-    #     if (a.must_reduce_by_sum()):
-    #         print("reduce after double, sum", i)
-    #         break
+    a = rns.rand_in_remainder_range()
+    for i in range(1000):
+        a = a + a
+        if (a.must_reduce_by_sum()):
+            print("reduce by sum after double", i)
+            c, q, t, v0, v1 = a.reduce()
+            assert a.value() == q.value * w + c.value()
+            print("quotient")
+            print(hex(q.value))
+            print(q.value.bit_length())
+            print("red residues max bit len")
+            print(v0.max_val.bit_length())
+            print(v1.max_val.bit_length())
+            break
 
+    a = rns.rand_in_remainder_range()
+    for i in range(1000):
+        a = a + rns.rand_in_remainder_range()
+        if (a.must_reduce_by_sum()):
+            c, q, t, v0, v1 = a.reduce()
+            print("reduce by sum after add", i)
+            assert a.value() == q.value * w + c.value()
+            print("quotient")
+            print(hex(q.value))
+            print(q.value.bit_length())
+            print("red residues max bit len")
+            print(v0.max_val.bit_length())
+            print(v1.max_val.bit_length())
+            break
+
+    a = rns.rand_in_remainder_range()
+    for i in range(1000):
+        a = a + a
+        if (a.must_reduce_by_a_limb()):
+            c, q, t, v0, v1 = a.reduce()
+            print("reduce by limb after double", i)
+            assert a.value() == q.value * w + c.value()
+            print("quotient")
+            print(hex(q.value))
+            print(q.value.bit_length())
+            print("red residues max bit len")
+            print(v0.max_val.bit_length())
+            print(v1.max_val.bit_length())
+            break
+
+    # too much room for this op
     # a = rns.rand_in_remainder_range()
     # for i in range(1000):
     #     a = a + rns.rand_in_remainder_range()
-    #     if (a.must_reduce_by_sum()):
-    #         print("reduce after add, sum", i)
-    #         break
-
-    # a = rns.rand_in_remainder_range()
-    # for i in range(1000):
-    #     a = a + a
     #     if (a.must_reduce_by_a_limb()):
-    #         print("reduce after double, limb", i)
+    #         print("reduce by limb after add", i)
+    #         assert a.value() == q.value * w + c.value()
+    #         print("quotient")
+    #         print(hex(q.value))
+    #         print(q.value.bit_length())
+    #         print("red residues max bit len")
+    #         print(v0.max_val.bit_length())
+    #         print(v1.max_val.bit_length())
     #         break
 
-    # a = rns.rand_in_remainder_range()
-    # for i in range(1000):
-    #     a = a + rns.rand_in_remainder_range()
-    #     if (a.must_reduce_by_a_limb()):
-    #         print("reduce after add, limb", i)
-    #         break
+    a = rns.rand_in_remainder_range()
+    for i in range(1000):
+        a = a - rns.rand_in_remainder_range()
+        if (a.must_reduce_by_sum()):
+            c, q, t, v0, v1 = a.reduce()
+            print("reduce by sum after sub", i)
+            assert a.value() == q.value * w + c.value()
+            print("quotient")
+            print(hex(q.value))
+            print(q.value.bit_length())
+            print("red residues max bit len")
+            print(v0.max_val.bit_length())
+            print(v1.max_val.bit_length())
+            break
 
+    # too much room for this op too
     # a = rns.rand_in_remainder_range()
     # for i in range(1000):
     #     a = a - rns.rand_in_remainder_range()
-    #     if (a.must_reduce_by_sum()):
-    #         print("reduce after sub, sum", i)
-    #         break
-
-    # a = rns.rand_in_remainder_range()
-    # for i in range(1000):
-    #     a = a - rns.rand_in_remainder_range()
     #     if (a.must_reduce_by_a_limb()):
-    #         print("reduce after add, limb", i)
+    #         c, q, t, v0, v1 = a.reduce()
+    #         print("reduce by limb after sub", i)
+    #         assert a.value() == q.value * w + c.value()
+    #         print("quotient")
+    #         print(hex(q.value))
+    #         print(q.value.bit_length())
+    #         print("red residues max bit len")
+    #         print(v0.max_val.bit_length())
+    #         print(v1.max_val.bit_length())
     #         break
