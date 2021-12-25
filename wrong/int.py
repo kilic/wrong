@@ -63,9 +63,12 @@ class Integer:
         return res
 
     def __sub__(self, other: Integer) -> Integer:
-        aux_limbs = self.rns.aux_limbs
+        aux_limbs = self.rns.make_aux(other)
         limbs = [a - b for a, b in zip(self, other)]
         limbs = [r + aux for r, aux in zip(limbs, aux_limbs)]
+
+        for limb in limbs:
+            assert limb.value < self.rns.max_unreduced_limb_val
 
         return Integer(self.rns, limbs)
 
@@ -146,6 +149,9 @@ class Integer:
 
     def native_modulus(self) -> int:
         return self.rns.native_modulus
+
+    def bits(self) -> int:
+        return self.value().bit_length()
 
     def debug(self, desc: str = ""):
         s = desc + ": " + hex(self.value()) + "\n" + "["

@@ -1,4 +1,4 @@
-from __future__ import annotations
+from __future__ import annotations, barry_as_FLUFL
 from random import randint
 from py_ecc.utils import prime_field_inv
 from enum import Enum
@@ -26,41 +26,64 @@ class RNS:
             number_of_limbs,
         )
 
-    def calculate_aux(self) -> list[Limb]:
+    def calculate_base_aux(self) -> list[Limb]:
 
+        w = self.wrong_modulus
         R = self.left_shifter
         wrong_modulus_limbs = self.wrong_modulus_limbs()
-        number_of_limbs = self.number_of_limbs
 
-        range_correct_factor = (R // wrong_modulus_limbs[number_of_limbs - 1].value) + 1
+        shift = 1
+        # base aux = 2 * w
+        base_aux = [limb.value << shift for limb in wrong_modulus_limbs]
 
-        aux = [_p.value * range_correct_factor for _p in wrong_modulus_limbs]
+        # shift to make limbs
+        for i in range(self.number_of_limbs - 1):
+            high_index = self.number_of_limbs - i - 1
+            low_index = high_index - 1
 
-        overborrow = False
-        while True:
-            for i in range(number_of_limbs):
+            if base_aux[low_index].bit_length() < self.bit_len_limb + 1:
+                base_aux[high_index] -= 1
+                base_aux[low_index] += R
 
-                if aux[i] < R - 1:
+            # for i in range(self.number_of_limbs - 1):
+            #     idx = self.number_of_limbs - i
+            #     is_last_limb = idx == self.number_of_limbs - 1
+            #     target = self.max_reduced_limb_val if not is_last_limb else self.max_most_significant_reduced_limb_val
+            #     if base_aux[i] < target:
+            #         print("must not be here")
+            #         assert False
+            #         if is_last_limb:
+            #             shift += 1
+            #             base_aux = [limb.value << shift for limb in wrong_modulus_limbs]
+            #         continue
+            # break
 
-                    if i == number_of_limbs - 1:
-                        overborrow = True
-                        print("overborrow")
-                        break
+        base_aux = [Limb(value, self.native_modulus, value) for value in base_aux]
 
-                    aux[i] = aux[i] + R
-                    aux[i + 1] -= 1
+        base_aux_value = self.value_from_limbs(base_aux)
+        assert base_aux_value % w == 0
+        assert base_aux_value > self.max_remainder_value
 
-            if overborrow:
-                range_correct_factor += 1
-                aux = [_p * range_correct_factor for _p in wrong_modulus_limbs]
-                overborrow = False
-            else:
-                break
+        for i in range(self.number_of_limbs):
+            is_last_limb = i == self.number_of_limbs - 1
+            target = self.max_reduced_limb_val if not is_last_limb else self.max_most_significant_reduced_limb_val
+            assert base_aux[i].value >= target
 
-        for _aux in aux:
-            assert _aux >= R - 1
+        return base_aux
 
-        return [Limb(e, self.wrong_modulus, e) for e in aux]
+    def make_aux(self, integer: Integer) -> list[Limb]:
+
+        limbs = [limb.max_val for limb in integer.limbs]
+        max_shift = 0
+        for i in range(self.number_of_limbs):
+            max_val, aux = limbs[i], self.base_aux[i].value
+            shift = 1
+            while max_val > aux:
+                aux = aux << 1
+                max_shift = max(shift, max_shift)
+                shift += 1
+
+        return [Limb(aux_limb.value << max_shift, self.native_modulus, aux_limb.value << max_shift) for aux_limb in self.base_aux]
 
     def __init__(
         self,
@@ -141,18 +164,24 @@ class RNS:
         acc += self.max_most_significant_mul_quotient_limb_val << (self.bit_len_limb * (number_of_limbs - 1))
         assert acc == self.max_mul_quotient
 
-        self.aux_limbs = self.calculate_aux()
-        self.aux_val = self.value_from_limbs(self.aux_limbs)
-        assert self.aux_val % self.wrong_modulus == 0
+        self.max_reduction_quotient_bit_len = self.bit_len_limb
+        self.max_reduction_quotient = (1 << self.max_reduction_quotient_bit_len) - 1
+
+        self.max_reducible_bit_len = (self.max_reduction_quotient * wrong_modulus).bit_length() - 1
+        self.max_reducible_value = (1 << self.max_reducible_bit_len) - 1
+
+        self.base_aux = self.calculate_base_aux()
+        self.base_aux_val = self.value_from_limbs(self.base_aux)
 
     def max_limb(self, bit_len=0):
         if bit_len == 0:
             bit_len = self.bit_len_limb
         return (1 << bit_len) - 1
 
-    def rand_limb(self, bit_len=0):
+    def rand_constant_limb(self, bit_len=0) -> Limb:
         bit_len = bit_len if bit_len != 0 else self.bit_len_limb
-        return randint(0, (1 << bit_len) - 1)
+        value = randint(0, (1 << bit_len) - 1)
+        return self.to_constant_limb(value)
 
     def max_most_significant_limb_val(self, overflow=Range.REMAINDER) -> int:
         if overflow == Range.REMAINDER:
@@ -172,10 +201,10 @@ class RNS:
         assert self.value_from_limbs(limbs) == value
         return self.from_limbs(limbs)
 
-    def max_remainder_int(self):
+    def max_remainder_int(self) -> Integer:
         return self.from_value(self.max_remainder_value, Range.REMAINDER)
 
-    def max_operand_int(self):
+    def max_operand_int(self) -> Integer:
         return self.from_value(self.max_operand_value, Range.OPERAND)
 
     def rand_in_field(self) -> Integer:
@@ -190,8 +219,8 @@ class RNS:
         value = randint(0, self.max_operand_value)
         return self.from_value(value, Range.OPERAND)
 
-    def rand_with_limb_bit_size(self, bit_len: int = 0, overflow=Range.REMAINDER) -> Integer:
-        return self.from_limbs([self.rand_limb(bit_len) for _ in range(self.number_of_limbs)], overflow)
+    # def rand_with_limb_bit_size(self, bit_len: int = 0, overflow=Range.REMAINDER) -> Integer:
+    #     return self.from_limbs([self.rand_limb(bit_len) for _ in range(self.number_of_limbs)], overflow)
 
     def zero(self) -> Integer:
         return self.from_limbs([0] * self.number_of_limbs)
@@ -209,6 +238,15 @@ class RNS:
                 limbs.append(Limb(value, self.native_modulus, value if is_constant else self.max_limb()))
 
         return limbs
+
+    def to_constant_limb(self, value: int) -> Limb:
+        return Limb(value, self.native_modulus, value)
+
+    def to_limb(self, value: int) -> Limb:
+        return Limb(value, self.native_modulus, self.max_limb())
+
+    def to_most_significant_limb(self, value: int, overflow: Range.REMAINDER) -> Limb:
+        return Limb(value, self.native_modulus, self.max_most_significant_limb_val(overflow))
 
     def value_from_limbs(self, limbs: list[Limb]) -> int:
         b = self.bit_len_limb
@@ -251,13 +289,13 @@ class RNS:
             s += hex(e) + " "
         print(desc, hex(self.value_from_limbs(limbs)), s)
 
-    def lsh(self, a: Limb, n: int = 1):
+    def lsh(self, a: Limb, n: int = 1) -> Limb:
         R = self.left_shifter**n
         value = (a.value * R) % self.native_modulus
         max_val = a.max_val << (self.bit_len_limb * n)
         return Limb(value, self.native_modulus, max_val)
 
-    def rsh(self, a: Limb, n: int = 1):
+    def rsh(self, a: Limb, n: int = 1) -> Limb:
         R = self.right_shifter**n
         value = (a.value * R) % self.native_modulus
         max_val = a.max_val >> (self.bit_len_limb * n)

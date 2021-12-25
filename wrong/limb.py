@@ -24,6 +24,9 @@ class Limb:
         assert self.value < self.modulus
         self.max_val = self.max_val * k
 
+    def bits(self) -> int:
+        return self.value.bit_length()
+
     def __mul__(self, other: Limb) -> Limb:
         value = (self.value * other.value) % self.modulus
         max_val = self.max_val * other.max_val
@@ -40,4 +43,10 @@ class Limb:
     def __sub__(self, other: Limb) -> Limb:
         value = (self.value - other.value) % self.modulus
         max_val = self.max_val
+        return Limb.new_no_check(value, self.modulus, max_val)
+
+    def lsh(self, n: int = 1) -> Limb:
+        value = (self.value << n) % self.modulus
+        max_val = self.max_val << n
+        assert max_val < self.modulus
         return Limb.new_no_check(value, self.modulus, max_val)
